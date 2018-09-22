@@ -1,27 +1,23 @@
 import numpy as np
-from sys import argv
-
-# File Name
-TESTING_FILE = argv[1]
 
 # get weight matrix
 W = []
 MEAN = []
 STDEV = []
 
-with open('./model/2_weight.csv', 'rb') as file:
+with open('./hw1/model/1_weight.csv', 'rb') as file:
     for idx, line in enumerate(file):
         line = str(line).split("'")[1].split('\\r')[0]
         W.append(float(line))
 W = np.array(W)
 W = W.reshape(-1, 1)
 
-with open('./model/2_mean.csv', 'rb') as file:
+with open('./hw1/model/1_mean.csv', 'rb') as file:
     for idx, line in enumerate(file):
         line = str(line).split("'")[1].split('\\r')[0]
         MEAN.append(float(line))
 
-with open('./model/2_stdev.csv', 'rb') as file:
+with open('./hw1/model/1_stdev.csv', 'rb') as file:
     for idx, line in enumerate(file):
         line = str(line).split("'")[1].split('\\r')[0]
         STDEV.append(float(line))
@@ -32,7 +28,7 @@ NAME = []
 for i in range(18):
     DATA.append([])
 
-with open(TESTING_FILE, 'rb') as file:
+with open('./hw1/data/test.csv', 'rb') as file:
     for idx, line in enumerate(file):
         line = str(line).split('\\n')[0]
         items = line.split(',')[2:]
@@ -59,8 +55,6 @@ X = np.array(X)
 
 Y = np.dot(X, W)
 Y = Y * STDEV[9] + MEAN[9]
-print('id', end=',')
-print('value')
 for idx, data in enumerate(Y):
     print(NAME[idx], end=',')
     print(int(round(data[0])))
