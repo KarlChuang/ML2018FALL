@@ -247,12 +247,6 @@ if __name__ == '__main__':
     # create data to a matrix
     DATA_MATRIX = np.array(DATA)
 
-    # Train
-    # BEST_WEIGHTS = train(DATA_MATRIX, BANCH_NUM, TIMES, RATE, range(12), MEANS[9], STDEVS[9])
-    # LOSS = loss(DATA_MATRIX, BEST_WEIGHTS, range(12), MEANS[9], STDEVS[9])
-    # WEIGHTS_LOSS_PAIR.append((BEST_WEIGHTS, LOSS))
-    # print("Testing...  Loss= %.3e                      " % LOSS)
-
     for i in range(TRAIN_NUM):
         print("___"+ str(i + 1) + "___")
         MONTHS = sample(range(12), 12)
