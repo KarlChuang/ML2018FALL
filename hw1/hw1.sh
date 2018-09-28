@@ -1,1 +1,1 @@
-python3 ./hw1.py $1 > $2
+python3 ./test.py ./data/test.csv > ./output/output0.csv
