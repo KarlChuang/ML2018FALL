@@ -112,7 +112,7 @@ def loss(data_matrix, weights, months, mean_y, stdev_y):
             x_train = data_matrix[:, day + (month % 12) * 480:day + (month% 12) * 480 + 9]
             x_train = np.ravel(x_train)
             y_real = data_matrix[9][day + (month % 12) * 480 + 9] * stdev_y + mean_y
-            x_train = np.append(x_train**2, x_train)
+            # x_train = np.append(x_train**2, x_train)
             x_train = np.append(x_train, [1.0])
             x_train = np.array(x_train)
 
@@ -129,7 +129,7 @@ def train(data_matrix, banch_num, times, rate, months, mean_y, stdev_y):
     """
     weights = []
     divider = []
-    for _ in range(325):
+    for _ in range(163):
         weights.append(0.0)
         divider.append(0.0)
     weights = np.array(weights)
@@ -147,7 +147,7 @@ def train(data_matrix, banch_num, times, rate, months, mean_y, stdev_y):
             day = randint(0, 470)
             x_train = data_matrix[:, day + (month % 12) * 480:day + (month % 12) * 480 + 9]
             x_train = np.ravel(x_train)
-            x_train = np.append(x_train**2, x_train)
+            # x_train = np.append(x_train**2, x_train)
             x_train = np.append(x_train, [1.0])
             x_train = np.array(x_train)
             y_real = data_matrix[9][day + (month % 12) * 480 + 9] * stdev_y + mean_y
@@ -161,7 +161,7 @@ def train(data_matrix, banch_num, times, rate, months, mean_y, stdev_y):
         y_predict = np.dot(x_collection, weights)
         y_gap = y_predict - y_real_collection
         gradients = []
-        for dimension in range(325):
+        for dimension in range(163):
             x_dimension = x_collection[:, dimension:dimension + 1]
             x_dimension = np.ravel(x_dimension)
             x_dimension = np.array(x_dimension)
@@ -228,10 +228,10 @@ if __name__ == '__main__':
 
     # initial parameters
     RATE = 10.0
-    TIMES = 100000
+    TIMES = 25000
     BANCH_NUM = 100
     WEIGHTS_LOSS_PAIR = []
-    TRAIN_NUM = 10
+    TRAIN_NUM = 40
 
     # read data
     DATA = read_file('./' + PATH + '/data/train.csv')

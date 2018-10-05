@@ -39,24 +39,19 @@ def data_fixing(data):
     for month in range(12):
         for hour in range(480):
             for air in range(18):
-                try:
-                    data1 = data[air][(month % 12) * 480 + hour - 1]
-                    data2 = data[air][(month % 12) * 480 + hour]
-                    data3 = data[air][(month % 12) * 480 + hour + 1]
-                except IndexError:
-                    continue
-                if data2 <= 0:
+                idx2 = (month % 12) * 480 + hour
+                if data[air][idx2] <= 0:
                     if hour == 0:
-                        data[air][(month % 12) * 480 + hour] = data3
+                        data[air][idx2] = 0.75 * data[air][idx2 + 1] + 0.25 * data[air][idx2 + 2]
                     elif hour == 479:
-                        data[air][(month % 12) * 480 + hour] = data1
+                        data[air][idx2] = 0.75 * data[air][idx2 - 1] + 0.25 * data[air][idx2 - 2]
                     else:
+                        data1 = data[air][idx2 - 1]
+                        data3 = data[air][idx2 + 1]
                         if data3 <= 0:
-                            data[air][(month % 12) * 480 + hour] = data1
+                            data[air][idx2] = data1
                         else:
-                            data[air][(month % 12) * 480 + hour] = data1 * 0.5 + data3 * 0.5
-
-
+                            data[air][idx2] = data1 * 0.5 + data3 * 0.5
 
 def print_corr(data):
     """
@@ -101,85 +96,44 @@ def feature_scaling(data):
     return (means, stdevs)
 
 
-def loss(data_matrix, weights, months, mean_y, stdev_y):
+def loss(data_matrix,
+         weights,
+         months,
+         mean_y,
+         stdev_y,
+         order=1,
+         train_dimensions=range(18),
+         reasonable_data=None):
     """
     Get value of loss funtion from data in 'months' (list of months)
     """
     total_loss = 0.0
     for month in months:
         for day in range(471):
-            x_train = np.array([])
-            x_train = data_matrix[:, day + (month % 12) * 480:day + (month% 12) * 480 + 9]
+            x_train = []
+            for dimension in train_dimensions:
+                x_train.append(data_matrix[dimension, day + (month % 12) * 480:day +
+                                           (month % 12) * 480 + 9])
+            # x_train = data_matrix[:, day + (month % 12) * 480:day + (month% 12) * 480 + 9]
+            x_train = np.array(x_train)
             x_train = np.ravel(x_train)
-            y_real = data_matrix[9][day + (month % 12) * 480 + 9] * stdev_y + mean_y
-            x_train = np.append(x_train**2, x_train)
+            y_real = data_matrix[9][day + (month % 12) * 480 + 9] * stdev_y + mean_y\
+
+            if isinstance(reasonable_data, list):
+                if any(x < reasonable_data[0] or x > reasonable_data[1] for x in x_train):
+                    continue
+
+            if order == 3:
+                x_train_temp = np.append(x_train**3, x_train**2)
+                x_train = np.append(x_train_temp, x_train)
+            if order == 2:
+                x_train = np.append(x_train**2, x_train)
             x_train = np.append(x_train, [1.0])
             x_train = np.array(x_train)
-
             y_predict = np.inner(x_train, weights)
 
             total_loss += (y_predict - y_real)**2
     return total_loss
-
-
-def train(data_matrix, banch_num, times, rate, months, mean_y, stdev_y):
-    """
-    Training for good weight from 'data_matrix' in 'months' (list if month)
-    'times' (integer) times with learning rate 'rate' and banch number 'banch_num'
-    """
-    weights = []
-    divider = []
-    for _ in range(325):
-        weights.append(0.0)
-        divider.append(0.0)
-    weights = np.array(weights)
-    divider = np.array(divider)
-    best_loss = loss(data_matrix, weights, months, mean_y, stdev_y)
-    best_weights = np.copy(weights)
-
-    for j in range(times):
-        x_collection = []
-        y_real_collection = []
-
-        # randomly pick 'banch_num' number for a banch
-        for _ in range(banch_num):
-            month = sample(months, 1)[0]
-            day = randint(0, 470)
-            x_train = data_matrix[:, day + (month % 12) * 480:day + (month % 12) * 480 + 9]
-            x_train = np.ravel(x_train)
-            x_train = np.append(x_train**2, x_train)
-            x_train = np.append(x_train, [1.0])
-            x_train = np.array(x_train)
-            y_real = data_matrix[9][day + (month % 12) * 480 + 9] * stdev_y + mean_y
-
-            x_collection.append(x_train)
-            y_real_collection.append(y_real)
-        x_collection = np.array(x_collection)
-        y_real_collection = np.array(y_real_collection)
-
-        # gradient = (y_predict - y_real) * x
-        y_predict = np.dot(x_collection, weights)
-        y_gap = y_predict - y_real_collection
-        gradients = []
-        for dimension in range(325):
-            x_dimension = x_collection[:, dimension:dimension + 1]
-            x_dimension = np.ravel(x_dimension)
-            x_dimension = np.array(x_dimension)
-            gradients.append(np.inner(x_dimension, y_gap))
-        gradients = np.array(gradients)
-
-        # use adagrad for adjusting learning rate
-        divider = divider + gradients**2
-        weights = weights - ((rate * gradients) / (divider**(1 / 2)))
-
-        # detect loss every 100 times calculation
-        if j % 100 == 99:
-            temp_loss = loss(data_matrix, weights, months, mean_y, stdev_y)
-            if temp_loss < best_loss:
-                best_loss = temp_loss
-                best_weights = np.copy(weights)
-            print("Training %6s/%s times, min loss= %.3e" % (j + 1, times, best_loss), end='\r')
-    return best_weights
 
 def get_weight_gradient_0(data_matrix):
     """
@@ -214,6 +168,99 @@ def write_file(file_path, data_array):
         file.write('\r\n')
     file.close()
 
+
+def train(data_matrix,
+          banch_num,
+          times,
+          rate,
+          months,
+          mean_y,
+          stdev_y,
+          order=1,
+          train_dimensions=range(18),
+          reasonable_data=None):
+    """
+    Training for good weight from 'data_matrix' in 'months' (list if month)
+    'times' (integer) times with learning rate 'rate' and banch number 'banch_num'
+    with dimension reduced dataset
+    """
+    weights = []
+    divider = []
+    for _ in range(len(train_dimensions) * 9 * order + 1):
+        weights.append(0.0)
+        divider.append(0.0)
+    weights = np.array(weights)
+    divider = np.array(divider)
+    best_loss = loss(data_matrix, weights, months, mean_y, stdev_y, order,
+                     train_dimensions, reasonable_data)
+    best_weights = np.copy(weights)
+
+    for j in range(times):
+        x_collection = []
+        y_real_collection = []
+
+        # randomly pick 'banch_num' number for a banch
+        for _ in range(banch_num):
+            month = sample(months, 1)[0]
+            day = randint(0, 470)
+            x_train = []
+            for dimension in train_dimensions:
+                x_train.append(data_matrix[dimension, day + (month % 12) * 480:day +
+                                           (month % 12) * 480 + 9])
+            x_train = np.array(x_train)
+            x_train = np.ravel(x_train)
+
+            if isinstance(reasonable_data, list):
+                while any(x < reasonable_data[0] or x > reasonable_data[1] for x in x_train):
+                    month = sample(months, 1)[0]
+                    day = randint(0, 470)
+                    x_train = []
+                    for dimension in train_dimensions:
+                        x_train.append(
+                            data_matrix[dimension, day + (month % 12) * 480:day +
+                                        (month % 12) * 480 + 9])
+                    x_train = np.array(x_train)
+                    x_train = np.ravel(x_train)
+
+            if order == 3:
+                x_train_temp = np.append(x_train**3, x_train**2)
+                x_train = np.append(x_train_temp, x_train)
+            if order == 2:
+                x_train = np.append(x_train**2, x_train)
+            x_train = np.append(x_train, [1.0])
+            x_train = np.array(x_train)
+            y_real = data_matrix[9][day + (month % 12) * 480 + 9] * stdev_y + mean_y
+
+            x_collection.append(x_train)
+            y_real_collection.append(y_real)
+        x_collection = np.array(x_collection)
+        y_real_collection = np.array(y_real_collection)
+
+        # gradient = (y_predict - y_real) * x
+        y_predict = np.dot(x_collection, weights)
+        y_gap = y_predict - y_real_collection
+        gradients = []
+        for dimension in range(len(train_dimensions) * 9 * order + 1):
+            x_dimension = x_collection[:, dimension:dimension + 1]
+            x_dimension = np.ravel(x_dimension)
+            x_dimension = np.array(x_dimension)
+            gradients.append(np.inner(x_dimension, y_gap))
+        gradients = np.array(gradients)
+
+        # use adagrad for adjusting learning rate
+        divider = divider + gradients**2
+        weights = weights - ((rate * gradients) / (divider**(1 / 2)))
+
+        # detect loss every 100 times calculation
+        if j % 100 == 99:
+            temp_loss = loss(data_matrix, weights, months, mean_y, stdev_y,
+                             order, train_dimensions, reasonable_data)
+            if temp_loss < best_loss:
+                best_loss = temp_loss
+                best_weights = np.copy(weights)
+            print("Training %6s/%s times, min loss= %.3e" % (j + 1, times, best_loss), end='\r')
+    return best_weights
+
 if __name__ == '__main__':
     # system setting
     PATH, FILENAME = path.split(__file__)
@@ -227,11 +274,12 @@ if __name__ == '__main__':
         MODEL_NUM = '0'
 
     # initial parameters
-    RATE = 10.0
-    TIMES = 100000
+    RATE = 1.0
+    TIMES = 50000
     BANCH_NUM = 100
     WEIGHTS_LOSS_PAIR = []
     TRAIN_NUM = 10
+    ORDER = 2
 
     # read data
     DATA = read_file('./' + PATH + '/data/train.csv')
@@ -248,10 +296,26 @@ if __name__ == '__main__':
     DATA_MATRIX = np.array(DATA)
 
     MONTHS = range(12)
-    BEST_WEIGHTS = train(DATA_MATRIX, BANCH_NUM, TIMES, RATE, MONTHS, MEANS[9], STDEVS[9])
-    LOSS = loss(DATA_MATRIX, BEST_WEIGHTS, MONTHS, MEANS[9], STDEVS[9])
+    TRAIN_DIMENSIONS = [2, 3, 5, 6, 8, 9, 12, 13]
+    RESONABLE_DATA = [-3, 10]
+    BEST_WEIGHTS = train(
+        DATA_MATRIX,
+        BANCH_NUM,
+        TIMES,
+        RATE,
+        MONTHS,
+        MEANS[9],
+        STDEVS[9],
+        ORDER,
+        TRAIN_DIMENSIONS,
+        reasonable_data=RESONABLE_DATA)
+    # BEST_WEIGHTS = train(DATA_MATRIX, BANCH_NUM, TIMES, RATE, MONTHS, MEANS[9], STDEVS[9])
+    # LOSS = loss(DATA_MATRIX, BEST_WEIGHTS, MONTHS, MEANS[9], STDEVS[9])
+    LOSS = loss(DATA_MATRIX, BEST_WEIGHTS, MONTHS, MEANS[9], STDEVS[9], ORDER,
+                TRAIN_DIMENSIONS, reasonable_data=RESONABLE_DATA)
     WEIGHTS_LOSS_PAIR.append((BEST_WEIGHTS, LOSS))
-    print("Testing...  Loss= %.3e                                      " % LOSS)
+    print(' ' * 80, end='\r')
+    print("Testing...  Loss= %.3e" % LOSS)
 
     # Find smallest error weight
     MIN_WEIGHTS = WEIGHTS_LOSS_PAIR[0][0]

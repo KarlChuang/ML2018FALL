@@ -53,18 +53,26 @@ def feature_scaling(data, means, stdevs):
             except ZeroDivisionError:
                 row[idx2] = (column - means[idx1])
 
-def predict_result(weights, data_matrix):
+
+def predict_result(weights, data_matrix, order=1, train_dimensions=range(18)):
     """
     calculate the predict result
     """
     x_collection = []
     for i in range(len(NAME)):
-        x_temp = data_matrix[:, i * 9:i * 9 + 9]
-        x_temp = x_temp.ravel()
-
-        x_temp = np.append(x_temp**2, x_temp)
-        x_temp = np.append(x_temp, [1.0])
-        x_collection.append(x_temp)
+        x_train = []
+        for dimension in train_dimensions:
+            x_train.append(data_matrix[dimension, i * 9:i * 9 + 9])
+        x_train = np.array(x_train)
+        # x_train = data_matrix[:, i * 9:i * 9 + 9]
+        x_train = x_train.ravel()
+        if order == 3:
+            x_train_temp = np.append(x_train**3, x_train**2)
+            x_train = np.append(x_train_temp, x_train)
+        if order == 2:
+            x_train = np.append(x_train**2, x_train)
+        x_train = np.append(x_train, [1.0])
+        x_collection.append(x_train)
     x_collection = np.array(x_collection)
     y_predict = np.dot(x_collection, weights)
     return y_predict
@@ -110,7 +118,9 @@ if __name__ == '__main__':
     DATA_MATRIX = np.array(DATA)
 
     # calculate predict result
-    Y_PREDICT = predict_result(WEIGHTS, DATA_MATRIX)
+    TRAIN_DIMENSIONS = [2, 3, 5, 6, 8, 9, 12, 13]
+    ORDER = 2
+    Y_PREDICT = predict_result(WEIGHTS, DATA_MATRIX, ORDER, TRAIN_DIMENSIONS)
 
     # print result
     print_result(NAME, Y_PREDICT)
