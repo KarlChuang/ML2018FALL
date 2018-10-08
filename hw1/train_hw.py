@@ -6,9 +6,9 @@ from sys import argv
 from time import time
 from os import path
 from random import randint, sample
-import math
 
 import numpy as np
+import matplotlib.pyplot as plt
 
 def read_file(file_path):
     """
@@ -109,9 +109,7 @@ def loss(data_matrix,
          stdev_y,
          order=1,
          train_dimensions=range(18),
-         good_data_rule=default_rule,
-         get_rmse=False,
-         get_l2_norm=False):
+         good_data_rule=default_rule):
     """
     Get value of loss funtion from data in 'months' (list of months)
     """
@@ -147,10 +145,6 @@ def loss(data_matrix,
             total_loss += (y_predict - y_real)**2
             data_number += 1
     # print(data_number)
-    if get_rmse:
-        return math.sqrt(total_loss / data_number)
-    if get_l2_norm:
-        return total_loss
     return total_loss / data_number / 2
 
 def get_weight_gradient_0(data_matrix):
@@ -205,7 +199,7 @@ def train(data_matrix,
     weights = []
     divider = []
     for _ in range(len(train_dimensions) * 9 * order + 1):
-        weights.append(0.0)
+        weights.append(1.0)
         divider.append(0.0)
     weights = np.array(weights)
     divider = np.array(divider)
@@ -213,6 +207,8 @@ def train(data_matrix,
                      train_dimensions, good_data_rule)
     best_weights = np.copy(weights)
 
+    iterate_times = []
+    loss_rate = []
     for j in range(times):
         x_collection = []
         y_real_collection = []
@@ -268,10 +264,9 @@ def train(data_matrix,
 
         # use adagrad for adjusting learning rate
         divider = divider + gradients**2
-        weights＿no_bias = np.copy(weights)
-        weights＿no_bias[len(train_dimensions) * 9 * order] = 0
         weights = weights - (
-            (regularization_parameter * weights＿no_bias + gradients) * rate / (divider**(1 / 2)))
+            (weights * regularization_parameter + gradients) * rate /
+            (divider**(1 / 2)))
 
         # detect loss every 100 times calculation
         if j % 100 == 99:
@@ -280,13 +275,17 @@ def train(data_matrix,
             if temp_loss < best_loss:
                 best_loss = temp_loss
                 best_weights = np.copy(weights)
-            if regularization_parameter != 0:
-                best_loss = temp_loss
-                best_weights = np.copy(weights)
+                iterate_times.append(j)
+                loss_rate.append(temp_loss)
             print(
                 "Training %6s/%s times, min loss= %.3e" %
                 (j + 1, times, best_loss),
                 end='\r')
+    plt.figure(1)
+    plt.plot(iterate_times, loss_rate, 'k')
+    plt.xlabel('Iteration')
+    plt.ylabel('Loss')
+    plt.show()
     return best_weights
 
 if __name__ == '__main__':
@@ -302,8 +301,8 @@ if __name__ == '__main__':
         MODEL_NUM = '0'
 
     # initial parameters
-    RATE = 1.0
-    TIMES = 100000
+    RATE = 0.1
+    TIMES = 20000
     BANCH_NUM = 100
     WEIGHTS_LOSS_PAIR = []
     TRAIN_NUM = 10
@@ -327,26 +326,32 @@ if __name__ == '__main__':
         """
         define what kind if data is good
         """
-        # for air in range(int(len(train_data) / 9)):
-        #     for hour in range(1, 8):
-        #         idx = air * 9 + hour
-        #         if train_data[idx] == 0:
-        #             continue
-        #         average = (train_data[idx - 1] + train_data[idx + 1]) / 2
-        #         relative = abs((train_data[idx] - average) / train_data[idx])
-        #         if relative > 20:
-        #             return False
-        if any(x < -2 or x > 2 for x in train_data):
+        for air in range(int(len(train_data) / 9)):
+            for hour in range(1, 8):
+                idx = air * 9 + hour
+                if train_data[idx] == 0:
+                    continue
+                average = (train_data[idx - 1] + train_data[idx + 1]) / 2
+                relative = abs((train_data[idx] - average) / train_data[idx])
+                if relative > 20:
+                    return False
+        if any(x < -2 for x in train_data):
             return False
         return True
 
     MONTHS = range(12)
     TRAIN_DIMENSIONS = [2, 3, 5, 6, 8, 9, 12, 13]
-    # TRAIN_DIMENSIONS = [9]
-    BEST_WEIGHTS = train(DATA_MATRIX, BANCH_NUM, TIMES, RATE, MONTHS, MEANS[9],
-                         STDEVS[9], ORDER, TRAIN_DIMENSIONS,
-                         good_data_rule=data_good,
-                         regularization_parameter=0.1)
+    BEST_WEIGHTS = train(
+        DATA_MATRIX,
+        BANCH_NUM,
+        TIMES,
+        RATE,
+        MONTHS,
+        MEANS[9],
+        STDEVS[9],
+        ORDER,
+        TRAIN_DIMENSIONS)
+    # good_data_rule=data_good)
     # BEST_WEIGHTS = train(DATA_MATRIX, BANCH_NUM, TIMES, RATE, MONTHS, MEANS[9], STDEVS[9])
     # LOSS = loss(DATA_MATRIX, BEST_WEIGHTS, MONTHS, MEANS[9], STDEVS[9])
     LOSS = loss(
@@ -356,8 +361,8 @@ if __name__ == '__main__':
         MEANS[9],
         STDEVS[9],
         ORDER,
-        TRAIN_DIMENSIONS,
-        good_data_rule=data_good)
+        TRAIN_DIMENSIONS)
+    # good_data_rule=data_good)
     TOTAL_LOSS = loss(
         DATA_MATRIX,
         BEST_WEIGHTS,
@@ -366,30 +371,10 @@ if __name__ == '__main__':
         STDEVS[9],
         ORDER,
         TRAIN_DIMENSIONS)
-    TOTAL_RMSE = loss(
-        DATA_MATRIX,
-        BEST_WEIGHTS,
-        MONTHS,
-        MEANS[9],
-        STDEVS[9],
-        ORDER,
-        TRAIN_DIMENSIONS,
-        get_rmse=True)
-    L2NORM = loss(
-        DATA_MATRIX,
-        BEST_WEIGHTS,
-        MONTHS,
-        MEANS[9],
-        STDEVS[9],
-        ORDER,
-        TRAIN_DIMENSIONS,
-        get_l2_norm=True)
     WEIGHTS_LOSS_PAIR.append((BEST_WEIGHTS, LOSS))
     print()
     print(' ' * 80, end='\r')
-    print(
-        "Testing...  Loss= %.3e  Full data loss= %.3e  RMSE= %.3e  L2_norm= %.3e"
-        % (LOSS, TOTAL_LOSS, TOTAL_RMSE, L2NORM))
+    print("Testing...  Loss= %.3e  Full data loss= %.3e" % (LOSS, TOTAL_LOSS))
 
     # Find smallest error weight
     MIN_WEIGHTS = WEIGHTS_LOSS_PAIR[0][0]

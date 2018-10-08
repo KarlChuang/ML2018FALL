@@ -119,7 +119,8 @@ if __name__ == '__main__':
 
     # calculate predict result
     TRAIN_DIMENSIONS = [2, 3, 5, 6, 8, 9, 12, 13]
-    ORDER = 2
+    # TRAIN_DIMENSIONS = [9]
+    ORDER = 1
     Y_PREDICT = predict_result(WEIGHTS, DATA_MATRIX, ORDER, TRAIN_DIMENSIONS)
 
     # print result
