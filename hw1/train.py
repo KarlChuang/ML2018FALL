@@ -303,7 +303,7 @@ if __name__ == '__main__':
 
     # initial parameters
     RATE = 1.0
-    TIMES = 100000
+    TIMES = 50000
     BANCH_NUM = 100
     WEIGHTS_LOSS_PAIR = []
     TRAIN_NUM = 10
@@ -341,12 +341,13 @@ if __name__ == '__main__':
         return True
 
     MONTHS = range(12)
-    TRAIN_DIMENSIONS = [2, 3, 5, 6, 8, 9, 12, 13]
+    # TRAIN_DIMENSIONS = [2, 3, 5, 6, 8, 9, 12, 13]
+    TRAIN_DIMENSIONS = [2, 5, 8, 9]
     # TRAIN_DIMENSIONS = [9]
     BEST_WEIGHTS = train(DATA_MATRIX, BANCH_NUM, TIMES, RATE, MONTHS, MEANS[9],
                          STDEVS[9], ORDER, TRAIN_DIMENSIONS,
-                         good_data_rule=data_good,
-                         regularization_parameter=0.1)
+                         good_data_rule=data_good)
+                        #  regularization_parameter=0.1)
     # BEST_WEIGHTS = train(DATA_MATRIX, BANCH_NUM, TIMES, RATE, MONTHS, MEANS[9], STDEVS[9])
     # LOSS = loss(DATA_MATRIX, BEST_WEIGHTS, MONTHS, MEANS[9], STDEVS[9])
     LOSS = loss(

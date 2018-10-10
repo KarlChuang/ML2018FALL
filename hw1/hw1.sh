@@ -1,1 +1,1 @@
-python3 ./test.py $1 all_3 > $2
+python3 ./test.py $1 all_4 > $2
