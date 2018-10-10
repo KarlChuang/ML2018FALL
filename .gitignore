@@ -2,3 +2,5 @@ doc
 **/.DS_Store
 **/data
 **/output
+hw1/train_validation.py
+hw1/train_hw.py
