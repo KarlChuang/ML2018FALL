@@ -1,9 +1,7 @@
 """
 Use probability generative model to train the model
 """
-from statistics import mean, stdev
-from sys import argv
-from time import time
+from statistics import mean
 from os import path
 import math
 
