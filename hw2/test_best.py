@@ -48,6 +48,7 @@ class Logestic():
         self.weights = []
         self.means = []
         self.stdevs = []
+        self.max = []
         self.bias = 0.0
         self.dimension = 0
 
@@ -59,6 +60,7 @@ class Logestic():
             temp_weights = []
             temp_means = []
             temp_stdevs = []
+            temp_max = []
             for idx2, line in enumerate(file):
                 if idx2 == 0:
                     row = str(line).split('\\r')[0].split(',')[1:]
@@ -75,20 +77,47 @@ class Logestic():
                     row = str(line).split('\\r')[0].split(',')[1:]
                     row = row[:len(row) - 1]
                     temp_stdevs = [float(x) for x in row]
+                elif idx2 == 4:
+                    row = str(line).split('\\r')[0].split(',')[1:]
+                    row = row[:len(row) - 1]
+                    temp_max = [float(x) for x in row]
             self.weights = np.array(temp_weights)
             self.means = np.array(temp_means)
             self.stdevs = np.array(temp_stdevs)
+            self.max = np.array(temp_max)
 
-    def estimate_y(self, x_value):
+    def estimate_y(self, x_value, test_dimensions=range(23), order=1, threshold=0.5):
         """
         get likelihood value from generative model
         """
-        x_value = np.array(x_value)
-        x_feature_scaling = (x_value - self.means) / self.stdevs
+        x_temp = []
+        mean_temp = []
+        stdev_temp = []
+        max_temp = []
+        for idx1 in test_dimensions:
+            x_temp.append(x_value[idx1])
+            mean_temp.append(self.means[idx1])
+            stdev_temp.append(self.stdevs[idx1])
+            max_temp.append(self.max[idx1])
+        x_temp = np.array(x_temp)
+        mean_temp = np.array(mean_temp)
+        stdev_temp = np.array(stdev_temp)
+        max_temp = np.array(max_temp)
+        x_feature_scaling = (x_temp / max_temp - mean_temp) / stdev_temp
+        if order == 4:
+            x_train_temp = np.append(x_feature_scaling**4, x_feature_scaling**3)
+            x_train_temp = np.append(x_train_temp, x_feature_scaling**2)
+            x_feature_scaling = np.append(x_train_temp, x_feature_scaling)
+        if order == 3:
+            x_train_temp = np.append(x_feature_scaling**3, x_feature_scaling**2)
+            x_feature_scaling = np.append(x_train_temp, x_feature_scaling)
+        if order == 2:
+            x_feature_scaling = np.append(x_feature_scaling**2, x_feature_scaling)
+        x_feature_scaling = np.array(x_feature_scaling)
         z_value = np.inner(self.weights, x_feature_scaling)
         z_value = z_value + self.bias
         sigmoid = 1 / (1 + math.exp(-z_value))
-        if sigmoid < 0.5:
+        if sigmoid < threshold:
             return 0
         return 1
 
@@ -97,10 +126,10 @@ if __name__ == '__main__':
     TRAINING_DATA = Data()
     TRAINING_DATA.read_data(file_path_x=argv[1])
     MODEL = Logestic()
-    MODEL.create_model('./' + PATH + '/model/logestic.csv')
-
+    MODEL.create_model('./' + PATH + '/model/logestic_4.csv')
+    TEST_DIMENSION = [5, 6, 7, 8, 9, 10, 0]
     print('id,Value')
     for idx, x in enumerate(np.transpose(TRAINING_DATA.get_data_matrix())):
         print('id_' + str(idx), end=',')
-        result = MODEL.estimate_y(x)
+        result = MODEL.estimate_y(x, test_dimensions=TEST_DIMENSION, order=3, threshold=0.4)
         print(result)

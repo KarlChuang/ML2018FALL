@@ -4,6 +4,7 @@ Use probability generative model to train the model
 # from statistics import mean, stdev
 # from sys import argv
 from time import time
+from sys import argv
 from os import path
 from random import randint
 from statistics import mean, stdev
@@ -22,6 +23,7 @@ class Data():
         self.data_y = np.array([])
         self.mean = []
         self.stdev = []
+        self.max = []
 
     def get_data_matrix(self):
         """
@@ -67,6 +69,15 @@ class Data():
         feature scaling
         """
         for dimension in self.data_matrix:
+            max_data = dimension[0]
+            for data in dimension:
+                if data > max_data:
+                    max_data = data
+            self.max.append(max_data)
+        for idx, dimension in enumerate(self.data_matrix):
+            self.data_matrix[idx] = dimension / self.max[idx]
+        self.data_matrix = np.array(self.data_matrix)
+        for dimension in self.data_matrix:
             self.mean.append(mean(dimension))
             self.stdev.append(stdev(dimension))
         for idx, dimension in enumerate(self.data_matrix):
@@ -84,6 +95,26 @@ class Data():
         get stdevs of all dimension of x
         """
         return self.stdev
+
+    def get_max(self):
+        """
+        get max of all dimension of x
+        """
+        return self.max
+
+    def get_corr(self):
+        """
+        get correlation coefficient to find the relationship between parameter and output
+        """
+        temp_y_data = np.ravel(self.data_y)
+        temp_y_data = np.array(temp_y_data)
+        for idx1, dimension in enumerate(self.data_matrix):
+            corr = np.corrcoef([dimension, temp_y_data])
+            print("d_%s  %.2f" % (idx1, corr[0, 1]), end='\t')
+            if idx1 % 5 == 4:
+                print()
+        print()
+        exit()
 
 class Logestic():
     """
@@ -132,6 +163,10 @@ class Logestic():
             y_real = y_real_array[idx3][0]
             if not good_data_rule(x_train):
                 continue
+            if order == 4:
+                x_train_temp = np.append(x_train**4, x_train**3)
+                x_train_temp = np.append(x_train_temp, x_train**2)
+                x_train = np.append(x_train_temp, x_train)
             if order == 3:
                 x_train_temp = np.append(x_train**3, x_train**2)
                 x_train = np.append(x_train_temp, x_train)
@@ -147,6 +182,44 @@ class Logestic():
             total_loss += loss_predict
             data_number += 1
         return total_loss / data_number / 2
+
+    def get_correct_rate(self,
+                         data_matrix_t,
+                         y_real_array,
+                         weights,
+                         bias,
+                         order=1,
+                         train_dimensions=range(23),
+                         threshold=0.5):
+        """
+        Get rate of correction in data_matrix
+        """
+        correct_number = 0
+        data_number = 0
+        for idx3, x_value in enumerate(data_matrix_t):
+            x_train = []
+            for dimension in train_dimensions:
+                x_train.append(x_value[dimension])
+            x_train = np.array(x_train)
+            y_real = y_real_array[idx3][0]
+            if order == 4:
+                x_train_temp = np.append(x_train**4, x_train**3)
+                x_train_temp = np.append(x_train_temp, x_train**2)
+                x_train = np.append(x_train_temp, x_train)
+            if order == 3:
+                x_train_temp = np.append(x_train**3, x_train**2)
+                x_train = np.append(x_train_temp, x_train)
+            if order == 2:
+                x_train = np.append(x_train**2, x_train)
+            x_train = np.array(x_train)
+            y_sigmoid = self.estimate_1_probability(x_train, weights, bias)
+            result = 1
+            if y_sigmoid < threshold:
+                result = 0
+            if result == y_real:
+                correct_number += 1
+            data_number += 1
+        return correct_number / data_number
 
     def create_model(self, data_matrix, y_real_array, banch_num, times, rate, order=1,
                      train_dimensions=range(23), good_data_rule=default_rule,
@@ -188,6 +261,10 @@ class Logestic():
                     for dimension in train_dimensions:
                         x_train.append(data_matrix_t[data_idx][dimension])
                     x_train = np.array(x_train)
+                if order == 4:
+                    x_train_temp = np.append(x_train**4, x_train**3)
+                    x_train_temp = np.append(x_train_temp, x_train**2)
+                    x_train = np.append(x_train_temp, x_train)
                 if order == 3:
                     x_train_temp = np.append(x_train**3, x_train**2)
                     x_train = np.append(x_train_temp, x_train)
@@ -237,7 +314,7 @@ class Logestic():
                     self.weights = np.copy(temp_weights)
                     self.bias = temp_bias
                 print(
-                    "Training %6s/%s times, min loss= %.3e" %
+                    "Training %6s/%s times, min loss= %.7e" %
                     (j + 1, times, best_loss),
                     end='\r')
         print()
@@ -263,28 +340,90 @@ class Logestic():
         for stdev_value in self.data.get_stdevs():
             file.write(str(stdev_value) + ',')
         file.write('\r\n')
+        file.write('max,')
+        for max_value in self.data.get_max():
+            file.write(str(max_value) + ',')
+        file.write('\r\n')
         file.close()
 
 if __name__ == '__main__':
     START = time()
 
     PATH, FILENAME = path.split(__file__)
+    OUTPUT_PATH = argv[1]
 
     RATE = 0.05
-    TIMES = 10000
+    TIMES = 20000
     BANCH_NUM = 100
-    ORDER = 1
+    ORDER = 3
+    TRAINING_DIMENSION = [5, 6, 7, 8, 9, 10, 0]
 
     TRAINING_DATA = Data()
     TRAINING_DATA.read_data(
         file_path_x='./' + PATH + '/data/train_x.csv',
         file_path_y='./' + PATH + '/data/train_y.csv')
     TRAINING_DATA.feature_scaling()
+    # TRAINING_DATA.get_corr()
+    # exit()
+    # def good_data(x_train):
+    #     """
+    #     define what kind of data is good
+    #     """
+    #     if any(x > 1.5 or x < -1.5 for x in x_train):
+    #         return False
+    #     return True
+
+    TEMP_MATRIX_T = np.transpose(TRAINING_DATA.get_data_matrix())
+    # RANGE = sample(range(20000), 20000)
+    TEMP_Y = TRAINING_DATA.get_real_y()
+    TRAIN_Y = np.array(TEMP_Y[:15000])
+    TEST_Y = np.array(TEMP_Y[15000:])
+    TRAIN_MATRIX_T = np.array(TEMP_MATRIX_T[:15000])
+    TEST_MATRIX_T = np.array(TEMP_MATRIX_T[15000:])
+    for i in range(10):
+        MODEL = Logestic(TRAINING_DATA)
+        print('___', end='')
+        print(0.38+0.01*i, end='')
+        print('___')
+        MODEL.create_model(
+            np.transpose(TRAIN_MATRIX_T),
+            TRAIN_Y,
+            BANCH_NUM,
+            TIMES,
+            RATE,
+            ORDER,
+            train_dimensions=TRAINING_DIMENSION)
+        LOSS = MODEL.loss(
+            TEST_MATRIX_T,
+            TEST_Y,
+            MODEL.weights,
+            MODEL.bias,
+            ORDER,
+            train_dimensions=TRAINING_DIMENSION)
+        CORRECT_RATE = MODEL.get_correct_rate(
+            TEST_MATRIX_T,
+            TEST_Y,
+            MODEL.weights,
+            MODEL.bias,
+            ORDER,
+            train_dimensions=TRAINING_DIMENSION,
+            threshold=0.38 + 0.01*i)
+        print('loss=', LOSS)
+        print('correct rate=', CORRECT_RATE)
+    exit()
+
     MODEL = Logestic(TRAINING_DATA)
-    MODEL.create_model(TRAINING_DATA.get_data_matrix(),
-                       TRAINING_DATA.get_real_y(), BANCH_NUM, TIMES, RATE,
-                       ORDER)
-    MODEL.export_model_parameter('./' + PATH + 'model/logestic.csv')
+    MODEL.create_model(
+        TRAINING_DATA.get_data_matrix(),
+        TRAINING_DATA.get_real_y(),
+        BANCH_NUM,
+        TIMES,
+        RATE,
+        ORDER,
+        train_dimensions=TRAINING_DIMENSION)
+    # regularization_parameter=0.1)
+    # good_data_rule=good_data)
+    MODEL.export_model_parameter(OUTPUT_PATH)
     STOP = time()
     print("Training finished!")
     print("Time used:", round((STOP - START) / 60), "min",
