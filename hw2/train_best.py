@@ -6,7 +6,7 @@ Use probability generative model to train the model
 from time import time
 from sys import argv
 from os import path
-from random import randint
+from random import randint, sample
 from statistics import mean, stdev
 import math
 
@@ -221,7 +221,7 @@ class Logestic():
             data_number += 1
         return correct_number / data_number
 
-    def create_model(self, data_matrix, y_real_array, banch_num, times, rate, order=1,
+    def create_model(self, data_matrix, y_real_array, banch_num, epochs, rate, order=1,
                      train_dimensions=range(23), good_data_rule=default_rule,
                      regularization_parameter=0):
         """
@@ -243,80 +243,87 @@ class Logestic():
         self.weights = np.copy(temp_weights)
         self.bias = temp_bias
 
-        for j in range(times):
-            x_collection = []
-            y_real_collection = []
+        for j in range(epochs):
 
-            # randomly pick 'banch_num' number for a banch
-            for _ in range(banch_num):
-                data_idx = randint(0, np.shape(data_matrix)[1] - 1)
-                # x_train = data_matrix_t[data_idx]
-                x_train = []
-                for dimension in train_dimensions:
-                    x_train.append(data_matrix_t[data_idx][dimension])
-                x_train = np.array(x_train)
-                while not good_data_rule(x_train):
-                    data_idx = randint(0, np.shape(data_matrix)[1] - 1)
+            data_amount = np.shape(data_matrix)[1]
+            random_dimension = sample(range(0, data_amount), data_amount)
+
+            for banch in range(int(data_amount / banch_num)):
+                x_collection = []
+                y_real_collection = []
+                # train_banch = random_dimension[banch * banch_num: (banch + 1) *
+                #                                banch_num]
+                for data_idx in random_dimension[banch * banch_num:
+                                                 (banch + 1) * banch_num]:
+                    # randomly pick 'banch_num' number for a banch
+                    # for _ in range(banch_num):
+                    #     data_idx = randint(0, np.shape(data_matrix)[1] - 1)
+                    # x_train = data_matrix_t[data_idx]
                     x_train = []
                     for dimension in train_dimensions:
                         x_train.append(data_matrix_t[data_idx][dimension])
                     x_train = np.array(x_train)
-                if order == 4:
-                    x_train_temp = np.append(x_train**4, x_train**3)
-                    x_train_temp = np.append(x_train_temp, x_train**2)
-                    x_train = np.append(x_train_temp, x_train)
-                if order == 3:
-                    x_train_temp = np.append(x_train**3, x_train**2)
-                    x_train = np.append(x_train_temp, x_train)
-                if order == 2:
-                    x_train = np.append(x_train**2, x_train)
-                x_train = np.array(x_train)
-                y_real = y_real_array[data_idx][0]
+                    while not good_data_rule(x_train):
+                        data_idx = randint(0, np.shape(data_matrix)[1] - 1)
+                        x_train = []
+                        for dimension in train_dimensions:
+                            x_train.append(data_matrix_t[data_idx][dimension])
+                        x_train = np.array(x_train)
+                    if order == 4:
+                        x_train_temp = np.append(x_train**4, x_train**3)
+                        x_train_temp = np.append(x_train_temp, x_train**2)
+                        x_train = np.append(x_train_temp, x_train)
+                    if order == 3:
+                        x_train_temp = np.append(x_train**3, x_train**2)
+                        x_train = np.append(x_train_temp, x_train)
+                    if order == 2:
+                        x_train = np.append(x_train**2, x_train)
+                    x_train = np.array(x_train)
+                    y_real = y_real_array[data_idx][0]
 
-                x_collection.append(x_train)
-                y_real_collection.append(y_real)
-            x_collection = np.array(x_collection)
-            y_real_collection = np.array(y_real_collection)
+                    x_collection.append(x_train)
+                    y_real_collection.append(y_real)
+                x_collection = np.array(x_collection)
+                y_real_collection = np.array(y_real_collection)
 
-            # gradient = (y_predict - y_real) * x
-            y_predict = []
-            for x_value in x_collection:
-                y_predict.append(self.estimate_1_probability(x_value, temp_weights, temp_bias))
-            y_predict = np.array(y_predict)
-            y_gap = y_predict - y_real_collection
-            gradients = []
-            for dimension in range(len(train_dimensions) * order):
-                x_dimension = x_collection[:, dimension:dimension + 1]
-                x_dimension = np.ravel(x_dimension)
-                x_dimension = np.array(x_dimension)
-                gradients.append(np.inner(x_dimension, y_gap))
-            gradients = np.array(gradients)
-            gradient_bias = np.sum(y_gap)
+                # gradient = (y_predict - y_real) * x
+                y_predict = []
+                for x_value in x_collection:
+                    y_predict.append(self.estimate_1_probability(x_value, temp_weights, temp_bias))
+                y_predict = np.array(y_predict)
+                y_gap = y_predict - y_real_collection
+                gradients = []
+                for dimension in range(len(train_dimensions) * order):
+                    x_dimension = x_collection[:, dimension:dimension + 1]
+                    x_dimension = np.ravel(x_dimension)
+                    x_dimension = np.array(x_dimension)
+                    gradients.append(np.inner(x_dimension, y_gap))
+                gradients = np.array(gradients)
+                gradient_bias = np.sum(y_gap)
 
-            # use adagrad for adjusting learning rate
-            divider = divider + gradients**2
-            bias_divider = bias_divider + gradient_bias**2
-            temp_weights = temp_weights - (
-                (regularization_parameter * temp_weights + gradients) * rate /
-                (divider**(1 / 2)))
-            temp_bias = temp_bias - (gradient_bias * rate / (bias_divider**(1/2)))
+                # use adagrad for adjusting learning rate
+                divider = divider + gradients**2
+                bias_divider = bias_divider + gradient_bias**2
+                temp_weights = temp_weights - (
+                    (regularization_parameter * temp_weights + gradients) * rate /
+                    (divider**(1 / 2)))
+                temp_bias = temp_bias - (gradient_bias * rate / (bias_divider**(1/2)))
 
-            # detect loss every 100 times calculation
-            if j % 100 == 99:
-                temp_loss = self.loss(data_matrix_t, y_real_array, temp_weights, temp_bias,
-                                      order, train_dimensions, good_data_rule)
-                if temp_loss < best_loss:
-                    best_loss = temp_loss
-                    self.weights = np.copy(temp_weights)
-                    self.bias = temp_bias
-                if regularization_parameter != 0:
-                    best_loss = temp_loss
-                    self.weights = np.copy(temp_weights)
-                    self.bias = temp_bias
-                print(
-                    "Training %6s/%s times, min loss= %.7e" %
-                    (j + 1, times, best_loss),
-                    end='\r')
+                # detect loss every 100 epochs calculation
+                # if j % 100 == 99:
+            temp_loss = self.loss(data_matrix_t, y_real_array, temp_weights, temp_bias,
+                                  order, train_dimensions, good_data_rule)
+            if temp_loss < best_loss:
+                best_loss = temp_loss
+                self.weights = np.copy(temp_weights)
+                self.bias = temp_bias
+            if regularization_parameter != 0:
+                best_loss = temp_loss
+                self.weights = np.copy(temp_weights)
+                self.bias = temp_bias
+            print(
+                "Training %6s/%s epochs, min loss= %.7e" % (j + 1, epochs,
+                                                            best_loss), end='\r')
         print()
 
     def export_model_parameter(self, output_file_path):
@@ -353,7 +360,7 @@ if __name__ == '__main__':
     OUTPUT_PATH = argv[1]
 
     RATE = 0.05
-    TIMES = 20000
+    EPOCHS = 300
     BANCH_NUM = 100
     ORDER = 3
     TRAINING_DIMENSION = [5, 6, 7, 8, 9, 10, 0]
@@ -373,58 +380,72 @@ if __name__ == '__main__':
     #         return False
     #     return True
 
-    TEMP_MATRIX_T = np.transpose(TRAINING_DATA.get_data_matrix())
-    # RANGE = sample(range(20000), 20000)
-    TEMP_Y = TRAINING_DATA.get_real_y()
-    TRAIN_Y = np.array(TEMP_Y[:15000])
-    TEST_Y = np.array(TEMP_Y[15000:])
-    TRAIN_MATRIX_T = np.array(TEMP_MATRIX_T[:15000])
-    TEST_MATRIX_T = np.array(TEMP_MATRIX_T[15000:])
-    for i in range(10):
-        MODEL = Logestic(TRAINING_DATA)
-        print('___', end='')
-        print(0.38+0.01*i, end='')
-        print('___')
-        MODEL.create_model(
-            np.transpose(TRAIN_MATRIX_T),
-            TRAIN_Y,
-            BANCH_NUM,
-            TIMES,
-            RATE,
-            ORDER,
-            train_dimensions=TRAINING_DIMENSION)
-        LOSS = MODEL.loss(
-            TEST_MATRIX_T,
-            TEST_Y,
-            MODEL.weights,
-            MODEL.bias,
-            ORDER,
-            train_dimensions=TRAINING_DIMENSION)
-        CORRECT_RATE = MODEL.get_correct_rate(
-            TEST_MATRIX_T,
-            TEST_Y,
-            MODEL.weights,
-            MODEL.bias,
-            ORDER,
-            train_dimensions=TRAINING_DIMENSION,
-            threshold=0.38 + 0.01*i)
-        print('loss=', LOSS)
-        print('correct rate=', CORRECT_RATE)
-    exit()
+    # TEMP_MATRIX_T = np.transpose(TRAINING_DATA.get_data_matrix())
+    # # RANGE = sample(range(20000), 20000)
+    # TEMP_Y = TRAINING_DATA.get_real_y()
+    # TRAIN_Y = np.array(TEMP_Y[:15000])
+    # TEST_Y = np.array(TEMP_Y[15000:])
+    # TRAIN_MATRIX_T = np.array(TEMP_MATRIX_T[:15000])
+    # TEST_MATRIX_T = np.array(TEMP_MATRIX_T[15000:])
+
+
+    # for i in range(10):
+    #     print('___', end='')
+    #     print(10**(5-i), end='')
+    #     print('___')
+    #     MODEL = Logestic(TRAINING_DATA)
+    #     MODEL.create_model(
+    #         np.transpose(TRAIN_MATRIX_T),
+    #         TRAIN_Y,
+    #         BANCH_NUM,
+    #         EPOCHS,
+    #         RATE,
+    #         ORDER,
+    #         train_dimensions=TRAINING_DIMENSION,
+    #         regularization_parameter=10**(-i))
+    #     LOSS = MODEL.loss(
+    #         TEST_MATRIX_T,
+    #         TEST_Y,
+    #         MODEL.weights,
+    #         MODEL.bias,
+    #         ORDER,
+    #         train_dimensions=TRAINING_DIMENSION)
+    #     CORRECT_RATE = MODEL.get_correct_rate(
+    #         TEST_MATRIX_T,
+    #         TEST_Y,
+    #         MODEL.weights,
+    #         MODEL.bias,
+    #         ORDER,
+    #         train_dimensions=TRAINING_DIMENSION,
+    #         threshold=0.4)
+    #     print('loss=', LOSS)
+    #     print('correct rate=', CORRECT_RATE)
+    # exit()
 
     MODEL = Logestic(TRAINING_DATA)
     MODEL.create_model(
         TRAINING_DATA.get_data_matrix(),
         TRAINING_DATA.get_real_y(),
         BANCH_NUM,
-        TIMES,
+        EPOCHS,
         RATE,
         ORDER,
         train_dimensions=TRAINING_DIMENSION)
-    # regularization_parameter=0.1)
+        # regularization_parameter=10)
     # good_data_rule=good_data)
     MODEL.export_model_parameter(OUTPUT_PATH)
     STOP = time()
+    for i in range(30):
+        print('__%s__' % (0.35 + 0.01 * i))
+        CORRECT_RATE = MODEL.get_correct_rate(
+            np.transpose(TRAINING_DATA.get_data_matrix()),
+            TRAINING_DATA.get_real_y(),
+            MODEL.weights,
+            MODEL.bias,
+            ORDER,
+            train_dimensions=TRAINING_DIMENSION,
+            threshold=0.35 + 0.01 * i)
+        print('correct rate=', CORRECT_RATE)
     print("Training finished!")
     print("Time used:", round((STOP - START) / 60), "min",
           round((STOP - START) % 60), "sec")

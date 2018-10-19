@@ -126,7 +126,7 @@ if __name__ == '__main__':
     TRAINING_DATA = Data()
     TRAINING_DATA.read_data(file_path_x=argv[1])
     MODEL = Logestic()
-    MODEL.create_model('./' + PATH + '/model/logestic_4.csv')
+    MODEL.create_model('./' + PATH + '/model/logestic_5.csv')
     TEST_DIMENSION = [5, 6, 7, 8, 9, 10, 0]
     print('id,Value')
     for idx, x in enumerate(np.transpose(TRAINING_DATA.get_data_matrix())):
