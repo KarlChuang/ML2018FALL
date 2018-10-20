@@ -38,6 +38,52 @@ class Data():
         data = np.array(data)
         self.data_matrix = np.transpose(data)
 
+    def one_hot_encoding(self):
+        """
+        make several dimension to one hot dimension
+        """
+        new_data_matrix = []
+        for idx1, dimension in enumerate(self.data_matrix):
+            if idx1 == 1:
+                new_dimension_1 = []
+                new_dimension_2 = []
+                for k in dimension:
+                    if k == 1:
+                        new_dimension_1.append(1)
+                        new_dimension_2.append(0)
+                    else:
+                        new_dimension_1.append(0)
+                        new_dimension_2.append(1)
+                new_data_matrix.append(new_dimension_1)
+                new_data_matrix.append(new_dimension_2)
+            elif idx1 == 2:
+                new_dimension = []
+                for _ in range(7):
+                    new_dimension.append([])
+                for k in dimension:
+                    for idx2, list1 in enumerate(new_dimension):
+                        if idx2 == k:
+                            list1.append(1)
+                        else:
+                            list1.append(0)
+                for list1 in new_dimension:
+                    new_data_matrix.append(list1)
+            elif idx1 == 3:
+                new_dimension = []
+                for _ in range(4):
+                    new_dimension.append([])
+                for k in dimension:
+                    for idx2, list1 in enumerate(new_dimension):
+                        if idx2 == k:
+                            list1.append(1)
+                        else:
+                            list1.append(0)
+                for list1 in new_dimension:
+                    new_data_matrix.append(list1)
+            else:
+                new_data_matrix.append(dimension)
+        new_data_matrix = np.array(new_data_matrix)
+        self.data_matrix = new_data_matrix
 
 class Logestic():
     """
@@ -103,7 +149,7 @@ class Logestic():
         mean_temp = np.array(mean_temp)
         stdev_temp = np.array(stdev_temp)
         max_temp = np.array(max_temp)
-        x_feature_scaling = (x_temp / max_temp - mean_temp) / stdev_temp
+        x_feature_scaling = ((x_temp - mean_temp) / stdev_temp) / max_temp
         if order == 4:
             x_train_temp = np.append(x_feature_scaling**4, x_feature_scaling**3)
             x_train_temp = np.append(x_train_temp, x_feature_scaling**2)
@@ -125,9 +171,12 @@ if __name__ == '__main__':
     PATH, FILENAME = path.split(__file__)
     TRAINING_DATA = Data()
     TRAINING_DATA.read_data(file_path_x=argv[1])
+    TRAINING_DATA.one_hot_encoding()
+
     MODEL = Logestic()
     MODEL.create_model('./' + PATH + '/model/logestic_5.csv')
-    TEST_DIMENSION = [5, 6, 7, 8, 9, 10, 0]
+    # TEST_DIMENSION = [5, 6, 7, 8, 9, 10, 0]
+    TEST_DIMENSION = range(33)
     print('id,Value')
     for idx, x in enumerate(np.transpose(TRAINING_DATA.get_data_matrix())):
         print('id_' + str(idx), end=',')
