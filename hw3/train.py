@@ -109,8 +109,6 @@ class Model():
         self.model.add(Dense(1024, activation='relu'))
         self.model.add(BatchNormalization())
         self.model.add(Dropout(0.5))
-        # self.model.add(Dense(512, activation='relu'))
-        # self.model.add(Dropout(0.5))
         self.model.add(Dense(7, activation='softmax'))
 
     def compile(self):
