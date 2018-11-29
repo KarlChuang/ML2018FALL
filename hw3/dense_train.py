@@ -7,7 +7,6 @@ from contextlib import redirect_stdout
 import numpy as np
 from keras.models import Sequential, load_model
 from keras.layers import Dense, Flatten, Dropout
-from keras.layers import Conv2D, MaxPooling2D
 from keras.optimizers import SGD
 from keras.preprocessing.image import ImageDataGenerator
 
@@ -60,6 +59,8 @@ class Data():
                 temp_x_3d = [[[float(y) / 255] for y in temp_x[x:x + 48]]
                              for x in range(0, len(temp_x), 48)]
                 data.append(temp_x_3d)
+                # temp_x_1d = [float(y) for y in temp_x]
+                # data.append(temp_x_1d)
         self.data_matrix = np.array(data)
         self.data_y = np.array(data_y)
 
@@ -82,33 +83,11 @@ class Model():
         use Keras to build a network
         """
         # Convolutional layers
-        self.model.add(Conv2D(filters=128, kernel_size=(3, 3), strides=(1, 1),
-                              activation='relu',
-                              input_shape=(48, 48, 1)))
-        self.model.add(Conv2D(filters=128, kernel_size=(3, 3), strides=(1, 1),
-                              activation='relu'))
-        self.model.add(MaxPooling2D(pool_size=(2, 2)))
-        self.model.add(Dropout(0.5))
-        self.model.add(Conv2D(filters=256, kernel_size=(3, 3), strides=(1, 1),
-                              activation='relu'))
-        self.model.add(Conv2D(filters=256, kernel_size=(3, 3), strides=(1, 1),
-                              activation='relu'))
-        self.model.add(MaxPooling2D(pool_size=(2, 2)))
-        self.model.add(Dropout(0.5))
-        self.model.add(Conv2D(filters=512, kernel_size=(3, 3), strides=(1, 1),
-                              activation='relu'))
-        self.model.add(Conv2D(filters=512, kernel_size=(2, 2), strides=(1, 1),
-                              activation='relu'))
-        self.model.add(MaxPooling2D(pool_size=(2, 2)))
-        self.model.add(Dropout(0.5))
-
-        # Fully connection layers
-        self.model.add(Flatten())
-        self.model.add(Dense(2048, activation='relu'))
-        self.model.add(Dropout(0.5))
-        self.model.add(Dense(1024, activation='relu'))
-        self.model.add(Dropout(0.5))
-        self.model.add(Dense(512, activation='relu'))
+        self.model.add(Flatten(input_shape=(48, 48, 1)))
+        self.model.add(Dense(1537, activation='relu', input_dim=2304))
+        for _ in range(5):
+            self.model.add(Dense(1534, activation='relu'))
+            self.model.add(Dropout(0.5))
         self.model.add(Dense(7, activation='softmax'))
 
     def compile(self):
@@ -131,7 +110,7 @@ class Model():
             with redirect_stdout(file):
                 self.model.summary()
         # for idx2 in range(20):
-            # print("%3s / 20" % (idx2 + 1))
+        # print("%3s / 20" % (idx2 + 1))
         self.model.fit(
             training_data_x,
             training_data_y,
@@ -166,7 +145,7 @@ class Model():
             training_data_y,
             batch_size=100)
         # for idx2 in range(20):
-            # print("%3s / 20" % (idx2 + 1))
+        # print("%3s / 20" % (idx2 + 1))
         self.model.fit_generator(
             generator=train_generator,
             steps_per_epoch=500,
