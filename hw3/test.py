@@ -95,7 +95,7 @@ class Model():
 
 if __name__ == '__main__':
     MODEL = Model()
-    MODEL.load_model(model_file_path='./model/model_6.hs')
+    MODEL.load_model(model_file_path='./model/model_8.hs')
     DATA = Data()
     DATA.read_data(file_path=TESTING_FILE_PATH)
     DATA.set_predict_y(predict_data_y=MODEL.predict(DATA))

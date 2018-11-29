@@ -5,10 +5,11 @@ from sys import argv
 from contextlib import redirect_stdout
 
 import numpy as np
-from keras.models import Sequential
+from keras.models import Sequential, load_model
 from keras.layers import Dense, Flatten, Dropout
 from keras.layers import Conv2D, MaxPooling2D, BatchNormalization
 from keras.optimizers import SGD
+from keras.preprocessing.image import ImageDataGenerator
 
 TRAINING_FILE_NAME = argv[1]
 OUTPUT_FILE_PATH = argv[2]
@@ -81,24 +82,21 @@ class Model():
         use Keras to build a network
         """
         # Convolutional layers
-        self.model.add(Conv2D(filters=128, kernel_size=(5, 5), strides=(1, 1),
+        self.model.add(Conv2D(filters=128, kernel_size=(3, 3), strides=(1, 1),
                               activation='relu',
                               input_shape=(48, 48, 1)))
-        self.model.add(BatchNormalization())
         self.model.add(Conv2D(filters=128, kernel_size=(3, 3), strides=(1, 1),
                               activation='relu'))
         self.model.add(MaxPooling2D(pool_size=(2, 2)))
         self.model.add(Dropout(0.5))
         self.model.add(Conv2D(filters=256, kernel_size=(3, 3), strides=(1, 1),
                               activation='relu'))
-        self.model.add(BatchNormalization())
-        self.model.add(Conv2D(filters=256, kernel_size=(2, 2), strides=(1, 1),
+        self.model.add(Conv2D(filters=256, kernel_size=(3, 3), strides=(1, 1),
                               activation='relu'))
         self.model.add(MaxPooling2D(pool_size=(2, 2)))
         self.model.add(Dropout(0.5))
         self.model.add(Conv2D(filters=512, kernel_size=(3, 3), strides=(1, 1),
                               activation='relu'))
-        self.model.add(BatchNormalization())
         self.model.add(Conv2D(filters=512, kernel_size=(2, 2), strides=(1, 1),
                               activation='relu'))
         self.model.add(MaxPooling2D(pool_size=(2, 2)))
@@ -107,18 +105,17 @@ class Model():
         # Fully connection layers
         self.model.add(Flatten())
         self.model.add(Dense(2048, activation='relu'))
-        self.model.add(BatchNormalization())
         self.model.add(Dropout(0.5))
         self.model.add(Dense(1024, activation='relu'))
-        self.model.add(BatchNormalization())
         self.model.add(Dropout(0.5))
+        self.model.add(Dense(512, activation='relu'))
         self.model.add(Dense(7, activation='softmax'))
 
     def compile(self):
         """
         compile the model
         """
-        sgd = SGD(lr=0.01, decay=0.00001, momentum=0.9)
+        sgd = SGD(lr=0.005, decay=0.000001, momentum=0.9)
         self.model.compile(
             loss='categorical_crossentropy',
             optimizer=sgd,
@@ -133,16 +130,56 @@ class Model():
         with open(output_model_path, 'w') as file:
             with redirect_stdout(file):
                 self.model.summary()
-        for idx2 in range(20):
-            print("%3s / 20" % (idx2 + 1))
-            self.model.fit(
-                training_data_x,
-                training_data_y,
-                validation_split=0.2,
-                batch_size=100,
-                epochs=20,
-                verbose=1)
-            self.model.save(output_file_path)
+        # for idx2 in range(20):
+            # print("%3s / 20" % (idx2 + 1))
+        self.model.fit(
+            training_data_x,
+            training_data_y,
+            validation_split=0.2,
+            batch_size=100,
+            epochs=100,
+            verbose=1)
+        self.model.save(output_file_path)
+
+    def train_with_data_generator(self, output_file_path, output_model_path):
+        """
+        Use Image data generator to generate new data
+        """
+        validation_split = 0.2
+        data_x = self.data.get_data_matrix()
+        data_y = self.data.get_real_y()
+        validation_data_x = data_x[:int(len(data_x) * validation_split)]
+        validation_data_y = data_y[:int(len(data_x) * validation_split)]
+        training_data_x = data_x[int(len(data_x) * validation_split):]
+        training_data_y = data_y[int(len(data_x) * validation_split):]
+        with open(output_model_path, 'w') as file:
+            with redirect_stdout(file):
+                self.model.summary()
+        train_datagen = ImageDataGenerator(
+            rotation_range=20,
+            width_shift_range=0.1,
+            height_shift_range=0.1,
+            horizontal_flip=True)
+        train_datagen.fit(training_data_x)
+        train_generator = train_datagen.flow(
+            training_data_x,
+            training_data_y,
+            batch_size=100)
+        # for idx2 in range(20):
+            # print("%3s / 20" % (idx2 + 1))
+        self.model.fit_generator(
+            generator=train_generator,
+            steps_per_epoch=500,
+            validation_data=(validation_data_x, validation_data_y),
+            epochs=100)
+        self.model.save(output_file_path)
+
+    def load_model(self, model_file_path):
+        """
+        load model from outside file
+        """
+        self.model = load_model(model_file_path)
+
 
 if __name__ == '__main__':
     DATA = Data()
@@ -150,9 +187,7 @@ if __name__ == '__main__':
     MODEL = Model()
     MODEL.set_data(DATA)
     MODEL.create_model()
-    # MODEL.model.summary()
-    # exit()
     MODEL.compile()
-    MODEL.training(
+    MODEL.train_with_data_generator(
         output_file_path=OUTPUT_FILE_PATH,
         output_model_path=OUTPUT_MODEL_SUMMARY_PATH)
