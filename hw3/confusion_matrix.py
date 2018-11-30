@@ -146,5 +146,6 @@ if __name__ == '__main__':
     DATA.set_predict_y(predict_data_y=MODEL.predict(DATA))
     # DATA.write_file(OUTPUT_FILE_PATH)
     CONFUSION_MATIRX = DATA.get_confision_matrix()
-    plot_confusion_matrix(CONFUSION_MATIRX, classes='aaa', normalize=True)
+    CLASSES = ['Angry', 'Disgust', 'Fear', 'Happy', 'Sad', 'Surprise', 'Neutral']
+    plot_confusion_matrix(CONFUSION_MATIRX, classes=CLASSES, normalize=True)
     plt.show()
