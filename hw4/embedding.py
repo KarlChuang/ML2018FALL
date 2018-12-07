@@ -8,7 +8,7 @@ from gensim.models import word2vec
 
 TRAIN_X_FILE_PATH = path.join('data', 'train_x.csv')
 SEGMENTATION_FILE_PATH = path.join('data', 'segmentation.txt')
-EMBEDDING_FILE_PATH = path.join('data', 'embedding.model')
+EMBEDDING_FILE_PATH = path.join('model', 'embedding.model')
 
 jieba.load_userdict(path.join('data', 'dict.txt.big'))
 
