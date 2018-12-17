@@ -8,3 +8,5 @@ hw2/train_temp.py
 hw2/test_temp.py
 *.hs
 *.model
+**/model
+**/.vscode
