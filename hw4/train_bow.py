@@ -10,53 +10,48 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
-# from model_0 import Model_0
+from model_0 import Model_0
 from model_1 import Model_1
-# from model_2 import Model_2
+from model_2 import Model_2
+from model_3 import Model_3
 
-# TRAIN_X_VECTOR_PATH = path.join('data', 'train_x_vector', )
+TRAIN_X_VECTOR_PATH = path.join('data', 'train_x_bow.pt', )
 TRAIN_Y_VECTOR_PATH = path.join('data', 'train_y_vector.pt')
 OUTPUT_MODEL_PATH = argv[1]
-EMBEDDING_DIMENSION = 250
+EMBEDDING_DIMENSION = 3087
 USE_GPU = torch.cuda.is_available()
 DEVICE = torch.device('cuda' if USE_GPU else 'cpu')
 
-TRAINING_FILE_NUMBER = 120
-def get_train_x_vector_path(num):
-    """
-    use for cutting train_x file
-    """
-    return path.join('data', 'train_x_vector', 'part%s.pt' % (int(num)))
+# TRAINING_FILE_NUMBER = 120
+# def get_train_x_vector_path(num):
+#     """
+#     use for cutting train_x file
+#     """
+#     return path.join('data', 'train_x_vector', 'part%s.pt' % (int(num)))
 
-def input_fitting(vector_x_batch, vector_y_batch):
-    """
-    fit the LSTM input
-    """
-    longest_sent = max([len(v) for v in vector_x_batch])
-    temp_x_batch = [
-        (torch.cat((torch.stack(v), torch.zeros(longest_sent - len(v), EMBEDDING_DIMENSION)))
-        if len(v)> 0 else torch.zeros(longest_sent - len(v), EMBEDDING_DIMENSION))
-        for v in vector_x_batch
-    ]
-    x_tensor = torch.stack(temp_x_batch, 0)
-    x_tensor_t = torch.transpose(x_tensor, 0, 1)
-    y_tensor = torch.tensor(vector_y_batch)
-    if USE_GPU:
-        return x_tensor_t.cuda(), y_tensor.cuda()
-    return x_tensor_t, y_tensor
+# def input_fitting(vector_x_batch, vector_y_batch):
+#     """
+#     fit the LSTM input
+#     """
+#     longest_sent = max([len(v) for v in vector_x_batch])
+#     temp_x_batch = [
+#         (torch.cat((torch.stack(v), torch.zeros(longest_sent - len(v), EMBEDDING_DIMENSION)))
+#         if len(v)> 0 else torch.zeros(longest_sent - len(v), EMBEDDING_DIMENSION))
+#         for v in vector_x_batch
+#     ]
+#     x_tensor = torch.stack(temp_x_batch, 0)
+#     x_tensor_t = torch.transpose(x_tensor, 0, 1)
+#     y_tensor = torch.tensor(vector_y_batch)
+#     if USE_GPU:
+#         return x_tensor_t.cuda(), y_tensor.cuda()
+#     return x_tensor_t, y_tensor
 
 def training(epochs, batches, model, loss_function, optimizer):
     """
     training the model
     """
     #     vector_x_list = torch.load(TRAIN_X_VECTOR_PATH)
-    vector_x_list = []
-    for path_idx in range(TRAINING_FILE_NUMBER):
-        file_path = get_train_x_vector_path(path_idx + 1)
-        vector_x_list_temp = torch.load(file_path)
-        vector_x_list = vector_x_list + vector_x_list_temp
-        print('\rConcating testing file...', path_idx + 1, 'success', end='')
-    print()
+    vector_x_list = torch.load(TRAIN_X_VECTOR_PATH)
     vector_y_list = torch.load(TRAIN_Y_VECTOR_PATH)
     loss_history = []
     accuracy_history = []
@@ -66,8 +61,15 @@ def training(epochs, batches, model, loss_function, optimizer):
         while idx + batches <= len(vector_x_list):
             vector_x_batch = vector_x_list[idx:idx + batches]
             vector_y_batch = vector_y_list[idx:idx + batches]
-            x_tensor, y_tensor = input_fitting(vector_x_batch, vector_y_batch)
-
+            if USE_GPU:
+                x_tensor = torch.FloatTensor(vector_x_batch).cuda()
+                y_tensor = torch.tensor(vector_y_batch).cuda()
+            else:
+                x_tensor = torch.FloatTensor(vector_x_batch)
+                y_tensor = torch.tensor(vector_y_batch)
+            # print(x_tensor)
+            # print(y_tensor)
+            # exit()
             optimizer.zero_grad()
             model.zero_grad()
             #             model.hidden = model.init_hidden()
@@ -107,7 +109,7 @@ def get_accuracy(scores, labels):
 if __name__ == "__main__":
     #     LSTM = Model_0(1000, 2)
     # LSTM = Model_1(1000, 2)
-    LSTM = Model_2(25, 2)
+    LSTM = Model_3(2)
     # LSTM.load_state_dict(torch.load(OUTPUT_MODEL_PATH))
     # LSTM.eval()
     if USE_GPU:

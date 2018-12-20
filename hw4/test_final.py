@@ -4,29 +4,49 @@ Testing
 from os import path
 from sys import argv
 
+import jieba
+from gensim.models import word2vec
 import torch
 import torch.autograd as autograd
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
-MODEL_PATH = argv[1]
-TESTING_FILE_PATH = argv[2]
-OUTPUT_FILE_PATH = argv[3]
-EMBEDDING_DIMENSION = 250
-TESTING_FILE_NUMBER = 80
-USE_GPU = torch.cuda.is_available()
-DEVICE = torch.device('cuda' if USE_GPU else 'cpu')
-
-from model_0 import Model_0
 from model_1 import Model_1
 
-def get_test_x_vector_path(num):
-    """
-    use for cutting test_x file
-    """
-    return path.join('data', 'test_x_vector', 'part%s.pt' % (int(num)))
+MODEL_PATH = argv[1]
+TESTING_FILE_PATH = argv[2]
+DICT_TXT_BIG = argv[3]
+OUTPUT_FILE_PATH = argv[4]
+EMBEDDING_DIMENSION = 250
+EMBEDDING_FILE_PATH = path.join(
+    'model', 'embedding' + str(EMBEDDING_DIMENSION) + '.model')
+USE_GPU = torch.cuda.is_available()
+DEVICE = torch.device('cuda' if USE_GPU else 'cpu')
+EMBEDDING_MODEL = word2vec.Word2Vec.load(EMBEDDING_FILE_PATH)
 
+def transfer_test_to_vector(embedding_model, test_x_file_path):
+    """
+    cut testing data to small data and save as vector
+    """
+    temp_x_list = []
+    with open(test_x_file_path, 'r', encoding='utf-8') as file:
+        for idx, line in enumerate(file):
+            if idx == 0:
+                continue
+            sentence = line.split(',')[1].split('\n')[0]
+            seg_list = jieba.lcut(sentence)
+            vector_list = []
+            for word in seg_list:
+                try:
+                    vector_list.append(
+                        torch.FloatTensor(embedding_model[word]))
+                except KeyError:
+                    pass
+            if len(vector_list) == 0:
+                vector_list.append(torch.zeros(EMBEDDING_DIMENSION))
+            temp_x_list.append(vector_list)
+    return temp_x_list
 
 def input_fitting(vector_x_batch):
     """
@@ -45,16 +65,7 @@ def input_fitting(vector_x_batch):
     return x_tensor_t
 
 def predict(model, output_file_path, batches):
-    vector_x_list = torch.load(TESTING_FILE_PATH)
-    # for path_idx in range(TESTING_FILE_NUMBER):
-    #     file_path = get_test_x_vector_path(path_idx + 1)
-    #     if USE_GPU:
-    #         vector_x_list_temp = torch.load(file_path)
-    #     else:
-    #         vector_x_list_temp = torch.load(file_path, map_location='cpu')
-    #     vector_x_list = vector_x_list + vector_x_list_temp
-    #     print('\rConcating testing file...', path_idx + 1, 'success', end='')
-    # print()
+    vector_x_list = transfer_test_to_vector(EMBEDDING_MODEL, TESTING_FILE_PATH)
     with open(output_file_path, 'w') as output_file:
         output_file.write('id,label\n')
         idx = 0

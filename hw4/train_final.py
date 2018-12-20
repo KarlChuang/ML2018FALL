@@ -4,6 +4,8 @@ RNN model training
 from os import path
 from sys import argv
 
+import jieba
+from gensim.models import word2vec
 import torch
 import torch.autograd as autograd
 import torch.nn as nn
@@ -14,19 +16,46 @@ import torch.optim as optim
 from model_1 import Model_1
 # from model_2 import Model_2
 
-# TRAIN_X_VECTOR_PATH = path.join('data', 'train_x_vector', )
-TRAIN_Y_VECTOR_PATH = path.join('data', 'train_y_vector.pt')
-OUTPUT_MODEL_PATH = argv[1]
+TRAIN_X_FILE_PATH = argv[1]
+TRAIN_Y_FILE_PATH = argv[2]
+DICT_TXT_BIG = argv[3]
+OUTPUT_MODEL_PATH = argv[4]
 EMBEDDING_DIMENSION = 250
+EMBEDDING_FILE_PATH = path.join(
+    'model', 'embedding' + str(EMBEDDING_DIMENSION) + '.model')
 USE_GPU = torch.cuda.is_available()
 DEVICE = torch.device('cuda' if USE_GPU else 'cpu')
 
-TRAINING_FILE_NUMBER = 120
-def get_train_x_vector_path(num):
+jieba.load_userdict(DICT_TXT_BIG)
+EMBEDDING_MODEL = word2vec.Word2Vec.load(EMBEDDING_FILE_PATH)
+
+def transfer_train_x_to_vector(embedding_model, train_x_file_path,
+                               train_y_file_path):
     """
-    use for cutting train_x file
+    cut training data to small data and save as vector
     """
-    return path.join('data', 'train_x_vector', 'part%s.pt' % (int(num)))
+    temp_x_list = []
+    y_list = []
+    with open(train_x_file_path, 'r', encoding='utf-8') as file:
+        with open(train_y_file_path, 'r') as file_y:
+            for idx, line in enumerate(file):
+                data_y = next(file_y)
+                if idx == 0:
+                    continue
+                data_y = int(data_y.split(',')[1].split('\n')[0])
+                sentence = line.split(',')[1].split('\n')[0]
+                seg_list = jieba.lcut(sentence)
+                vector_list = []
+                for word in seg_list:
+                    try:
+                        vector_list.append(
+                            torch.FloatTensor(embedding_model[word]))
+                    except KeyError:
+                        pass
+                if len(vector_list) > 0:
+                    temp_x_list.append(vector_list)
+                    y_list.append(data_y)
+    return (temp_x_list, y_list)
 
 def input_fitting(vector_x_batch, vector_y_batch):
     """
@@ -35,7 +64,7 @@ def input_fitting(vector_x_batch, vector_y_batch):
     longest_sent = max([len(v) for v in vector_x_batch])
     temp_x_batch = [
         (torch.cat((torch.stack(v), torch.zeros(longest_sent - len(v), EMBEDDING_DIMENSION)))
-        if len(v)> 0 else torch.zeros(longest_sent - len(v), EMBEDDING_DIMENSION))
+         if len(v)> 0 else torch.zeros(longest_sent - len(v), EMBEDDING_DIMENSION))
         for v in vector_x_batch
     ]
     x_tensor = torch.stack(temp_x_batch, 0)
@@ -49,15 +78,8 @@ def training(epochs, batches, model, loss_function, optimizer):
     """
     training the model
     """
-    #     vector_x_list = torch.load(TRAIN_X_VECTOR_PATH)
-    vector_x_list = []
-    for path_idx in range(TRAINING_FILE_NUMBER):
-        file_path = get_train_x_vector_path(path_idx + 1)
-        vector_x_list_temp = torch.load(file_path)
-        vector_x_list = vector_x_list + vector_x_list_temp
-        print('\rConcating testing file...', path_idx + 1, 'success', end='')
-    print()
-    vector_y_list = torch.load(TRAIN_Y_VECTOR_PATH)
+    vector_x_list, vector_y_list = transfer_train_x_to_vector(
+        EMBEDDING_MODEL, TRAIN_X_FILE_PATH, TRAIN_Y_FILE_PATH)
     loss_history = []
     accuracy_history = []
     for epoch in range(epochs):
@@ -70,7 +92,6 @@ def training(epochs, batches, model, loss_function, optimizer):
 
             optimizer.zero_grad()
             model.zero_grad()
-            #             model.hidden = model.init_hidden()
             score = model(x_tensor)
             loss = loss_function(score, y_tensor)
             accuracy = get_accuracy(score, y_tensor)
@@ -105,18 +126,16 @@ def get_accuracy(scores, labels):
     return correct_num / len(scores)
 
 if __name__ == "__main__":
-    #     LSTM = Model_0(1000, 2)
-    # LSTM = Model_1(1000, 2)
-    LSTM = Model_2(25, 2)
+    LSTM = Model_1(1000, 2)
     # LSTM.load_state_dict(torch.load(OUTPUT_MODEL_PATH))
     # LSTM.eval()
     if USE_GPU:
         print('Use gpu')
         LSTM.cuda()
     training(
-        epochs=100,
+        epochs=10,
         batches=10,
         model=LSTM,
         loss_function=nn.CrossEntropyLoss(),
-        optimizer=optim.Adam(LSTM.parameters(), lr=0.00001))
+        optimizer=optim.Adam(LSTM.parameters(), lr=0.001))
 #         optimizer=optim.SGD(LSTM.parameters(), lr=0.000000001, momentum=0.9, weight_decay=0.00001))
